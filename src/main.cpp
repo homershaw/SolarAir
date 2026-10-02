@@ -12,7 +12,7 @@ static constexpr float ACS_SENSITIVITY_V_PER_A=0.100f;
 static float acsZeroVoltage=2.500f;
 static constexpr float ACS_DIVIDER_RATIO=20.0f/30.0f, CURRENT_DIRECTION=1.0f, CURRENT_DEADBAND_A=0.08f, SOLAR_BUS_VOLTS=24.0f;
 static constexpr int ADC_SAMPLES=64;
-static constexpr uint32_t DISPLAY_INTERVAL_MS=500, SENSOR_POLL_INTERVAL_MS=1000, MQTT_PUBLISH_INTERVAL_MS=5000, MQTT_RETRY_INTERVAL_MS=5000;
+static constexpr uint32_t DISPLAY_INTERVAL_MS=1000, SENSOR_POLL_INTERVAL_MS=1000, MQTT_PUBLISH_INTERVAL_MS=5000, MQTT_RETRY_INTERVAL_MS=5000;\nstatic constexpr float CURRENT_FILTER_ALPHA=0.12f;  // lower = steadier display
 static const char *CONFIG_AP_NAME="Solar-Air-Setup";
 static char mqttHost[64]="", mqttPortText[7]="1883", mqttUser[48]="", mqttPassword[64]="", mqttBaseTopic[64]="solarair", deviceName[40]="";
 static const char MQTT_PASSWORD_ATTR[]="type='password'";
@@ -31,7 +31,7 @@ Preferences prefs;
 WiFiClient networkClient;
 MQTTClient mqtt(512);
 
-float solarCurrentA=0,solarPowerW=0,temperatureC=NAN,humidityRH=NAN;
+float solarCurrentA=0,solarPowerW=0,temperatureC=NAN,humidityRH=NAN;\nfloat filteredCurrentA=NAN;
 uint16_t co2ppm=0;
 bool scd40Online=false,mqttConfigChanged=false,webPortalRunning=false;
 uint32_t lastDisplay=0,lastSensorPoll=0,lastMqttPublish=0,lastMqttRetry=0;
@@ -180,7 +180,7 @@ void setup(){
   Wire.begin(PIN_SDA,PIN_SCL,100000);
   scd40Online=scd40.begin(Wire,true,true,false,true);
   wifiSetup(); mqttConfig();
-  solarCurrentA=current(); solarPowerW=solarCurrentA*SOLAR_BUS_VOLTS;
+  const float rawCurrentA=current();\n  if(isnan(filteredCurrentA)) filteredCurrentA=rawCurrentA;\n  else filteredCurrentA += CURRENT_FILTER_ALPHA*(rawCurrentA-filteredCurrentA);\n  if(fabsf(filteredCurrentA)<CURRENT_DEADBAND_A) filteredCurrentA=0.0f;\n  solarCurrentA=filteredCurrentA;\n  solarPowerW=solarCurrentA*SOLAR_BUS_VOLTS;
   display(); mqttConnect();
 }
 
